@@ -25,6 +25,7 @@ library(rpart.plot)
 library(vip)
 library(randomForest)
 library(xgboost)
+library(recipes)
 tidymodels_prefer()
 ```
 
@@ -59,4 +60,77 @@ fpoke_data %>% select(is.numeric) %>%
   corrplot(type = "lower")
 ```
 
-Looking at the correlation plot there seems to be no 
+Looking at the correlation plot there seems to be no negative correlation between any of the variables. There does seem to be positive correlation between speed with attack and special attack. Special defense is correlated with defense. Which makes sense
+as something with high defense should have high special defense and something with strong speed should be high attack since its offensive.
+
+# q3
+```{r}
+poke_tree_spec <- decision_tree(cost_complexity = tune()) %>% 
+  set_mode("classification") %>% 
+  set_engine("rpart")
+
+poke_tree_wf <- workflow() %>% 
+  add_recipe(poke_recipe) %>% 
+  add_model(poke_tree_spec)
+
+param_grid_tree <- grid_regular(cost_complexity(range = c(-3,-1)), levels = 10)
+
+tune_res_tree <- tune_grid(poke_tree_wf, resamples = poke_fold, grid = param_grid_tree, metrics = metric_set(roc_auc))
+```
+
+```{r}
+autoplot(tune_res_tree)
+```
+
+As cpst_complexity increases the overall roc_auc goes down. It slightly increases a little bit before 0.010 and then the model
+performs worse and worse until the end
+
+# q4
+```{r}
+collect_metrics(tune_res_tree) %>%  arrange(desc(mean))
+best_parameter_tree <- select_best(tune_res_tree, metric = "roc_auc")
+best_parameter_tree
+```
+
+The best performing decision tree was 0.6643, and it had a cost_complexity of 0.0129
+
+# q5
+```{r}
+poke_tree_final <- finalize_workflow(poke_tree_wf, best_parameter_tree)
+poke_tree_final_fit <- fit(poke_tree_final, data = poke_train)
+poke_tree_final_fit %>% extract_fit_engine() %>% 
+  rpart.plot(roundint = FALSE)
+```
+
+```{r}
+poke_rf_spec <- rand_forest(mtry = tune(), trees= tune(), min_n = tune()) %>%
+  set_engine("randomForest", importance = TRUE) %>% 
+  set_mode("classification")
+
+poke_rf_wf <- workflow() %>% 
+  add_recipe(poke_recipe) %>% 
+  add_model(poke_rf_spec)
+```
+
+mtry is the number of randomly selcted variables each tree is given
+
+trees represents the number of trees in the forest
+
+min_n is the minimum # of data points in each node that are required for further splitting
+
+```{r}
+param_grid_rf <- grid_regular(mtry(range = c(1,8)),
+                              trees(range = c(1,10)),
+                              min_n(range = c(1,10)),
+                              levels = 8)
+param_grid_rf
+```
+
+Since we haev 9 predictors in our dataset, mtry should range from 1 to 8. Otherwise, we would be using predictors that
+aren't available
+
+# q6
+```{r}
+tune_res_rf <- tune_grid(poke_rf_wf, resamples = poke_fold, grid = param_grid_rf, metrics = metric_set(roc_auc))
+autoplot(tune_res_rf)
+```
