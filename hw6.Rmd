@@ -37,4 +37,26 @@ fpoke_data <- poke_data %>% filter((type_1 == "Bug" | type_1 == "Fire" | type_1 
 fpoke_data$type_1 <- as.factor(fpoke_data$type_1)
 fpoke_data$legendary <- as.factor(fpoke_data$legendary)
 fpoke_data$generation <- as.factor(fpoke_data$generation)
+
+set.seed(115)
+poke_split <- initial_split(fpoke_data, prop = 0.8, strata = type_1)
+poke_train <- training(poke_split)
+poke_test <- testing(poke_split)
+
+poke_fold <- vfold_cv(data = poke_train, v=5, strata = type_1)
+poke_fold
+
+poke_recipe <- recipe(type_1 ~ legendary + generation + sp_atk + attack + speed + defense + hp + sp_def, data= poke_train) %>% 
+  step_dummy(legendary) %>% 
+  step_dummy(generation) %>% 
+  step_normalize(all_predictors())
 ```
+
+# q2
+```{r}
+fpoke_data %>% select(is.numeric) %>% 
+  cor() %>% 
+  corrplot(type = "lower")
+```
+
+Looking at the correlation plot there seems to be no 
