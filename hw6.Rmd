@@ -131,6 +131,13 @@ aren't available
 
 # q6
 ```{r}
-tune_res_rf <- tune_grid(poke_rf_wf, resamples = poke_fold, grid = param_grid_rf, metrics = metric_set(roc_auc))
-autoplot(tune_res_rf)
+tune_res_rf <- tune_grid(
+  poke_rf_wf, 
+  resamples = poke_fold, 
+  grid = param_grid_rf, 
+  metrics = metric_set(roc_auc))
+```
+
+```{r}
+collect_metrics(tune_res_rf) %>% arrange(desc(mean))
 ```
