@@ -135,7 +135,90 @@ tune_res_rf <- tune_grid(poke_rf_wf, resamples = poke_fold, grid = param_grid_rf
 
 ```{r}
 autoplot(tune_res_rf)
-collect_metrics(tune_res_rf) %>% arrange(desc(mean))
 ```
 
-Throughout all the models, it seems that the best performing models had 8 or 10 trees. 
+Throughout all the models, it seems that the best performing models had 7, 8, or 10 trees. Generally increasing the number of
+randomly selected predictors seems to increase the roc_auc score.
+
+# q7
+```{r}
+collect_metrics(tune_res_rf) %>% arrange(desc(mean))
+best_parameter_rf <- select_best(tune_res_rf, metric = "roc_auc")
+best_parameter_rf
+```
+
+The best performing model was (mtry = 7, trees = 10, and min_n = 4) with a roc_auc score of 0.7218
+
+# q8
+```{r}
+poke_rf_final <- finalize_workflow(poke_rf_wf, best_parameter_rf)
+poke_rf_final_fit <- fit(poke_rf_final, data = poke_train)
+poke_rf_final_fit %>% extract_fit_engine() %>% vip()
+```
+
+The most important variables were special attack and hp. While the generation of the pokemon was not that useful at all.
+This makes sense as which generation the pokemon came out doesn't have anything to do with its type while its hp stat
+could explain whether it is a strong typing or a weak typing
+
+# q9
+```{r}
+poke_boosted_spec <- boost_tree(trees = tune()) %>% 
+  set_engine("xgboost") %>% 
+  set_mode("classification")
+
+poke_boosted_wf <- workflow() %>% 
+  add_recipe(poke_recipe) %>% 
+  add_model(poke_boosted_spec)
+
+param_grid_boosted <- grid_regular(trees(range = c(10, 2000)), levels = 10)
+
+tune_res_boosted <- tune_grid(poke_boosted_wf, resamples = poke_fold, grid = param_grid_boosted, metrics = metric_set(roc_auc))
+```
+
+```{r}
+autoplot(tune_res_boosted)
+collect_metrics(tune_res_boosted) %>% arrange(desc(mean))
+```
+
+10 trees had the highest roc_auc score while the lowest score is around 231 trees.
+
+
+```{r}
+best_parameter_boosted <- select_best(tune_res_boosted, metric = "roc_auc")
+best_parameter_boosted
+```
+
+# q10
+```{r}
+tree_auc <- collect_metrics(tune_res_tree) %>% arrange(desc(mean))
+forest_auc <- collect_metrics(tune_res_rf) %>% arrange(desc(mean))
+boosted_auc <- collect_metrics(tune_res_boosted) %>% arrange(desc(mean))
+roc_aucs <- c(tree_auc$mean[1], forest_auc$mean[1], boosted_auc$mean[1])
+roc_aucs
+```
+From the three, it seems that the boosted tree tree model with 10 trees performed best with 0.7349 roc_auc score
+
+```{r}
+poke_final <- finalize_workflow(poke_boosted_wf, best_parameter_boosted)
+poke_final_fit <- fit(poke_final, data = poke_train)
+testing_roc_auc <- augment(poke_final_fit, new_data = poke_test) %>% 
+  roc_auc(truth = type_1, estimate= c(.pred_Bug, .pred_Fire, .pred_Grass, .pred_Normal, .pred_Psychic, .pred_Water))
+testing_roc_auc
+```
+
+```{r}
+roc_curves <- augment(poke_final_fit, new_data = poke_test) %>%
+  roc_curve(truth = type_1, estimate = c(.pred_Bug, .pred_Fire, .pred_Grass, .pred_Normal, .pred_Psychic, .pred_Water)) %>% 
+  autoplot()
+roc_curves
+```
+
+```{r}
+final_model_conf <- augment(poke_final_fit, new_data = poke_test) %>% 
+  conf_mat(truth = type_1, estimate = .pred_class) %>% 
+  autoplot(type = "heatmap")
+final_model_conf
+```
+
+The model was best at predicting normal types followed by water types. Fire and grass was the worst as it only got 1 correct
+on both of them. And the model was okay at predicting bug types as well.
