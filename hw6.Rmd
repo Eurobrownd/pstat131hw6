@@ -39,7 +39,7 @@ fpoke_data$type_1 <- as.factor(fpoke_data$type_1)
 fpoke_data$legendary <- as.factor(fpoke_data$legendary)
 fpoke_data$generation <- as.factor(fpoke_data$generation)
 
-set.seed(115)
+set.seed(558)
 poke_split <- initial_split(fpoke_data, prop = 0.8, strata = type_1)
 poke_train <- training(poke_split)
 poke_test <- testing(poke_split)
@@ -92,18 +92,17 @@ best_parameter_tree <- select_best(tune_res_tree, metric = "roc_auc")
 best_parameter_tree
 ```
 
-The best performing decision tree was 0.6643, and it had a cost_complexity of 0.0129
+The best performing decision tree was 0.6643, and it had a cost_complexity of 0.01292
 
 # q5
 ```{r}
 poke_tree_final <- finalize_workflow(poke_tree_wf, best_parameter_tree)
 poke_tree_final_fit <- fit(poke_tree_final, data = poke_train)
-poke_tree_final_fit %>% extract_fit_engine() %>% 
-  rpart.plot(roundint = FALSE)
+poke_tree_final_fit %>% extract_fit_engine() %>% rpart.plot(roundint = FALSE)
 ```
 
 ```{r}
-poke_rf_spec <- rand_forest(mtry = tune(), trees= tune(), min_n = tune()) %>%
+poke_rf_spec <- rand_forest(mtry=tune(), trees=tune(), min_n=tune()) %>% 
   set_engine("randomForest", importance = TRUE) %>% 
   set_mode("classification")
 
@@ -131,13 +130,12 @@ aren't available
 
 # q6
 ```{r}
-tune_res_rf <- tune_grid(
-  poke_rf_wf, 
-  resamples = poke_fold, 
-  grid = param_grid_rf, 
-  metrics = metric_set(roc_auc))
+tune_res_rf <- tune_grid(poke_rf_wf, resamples = poke_fold, grid = param_grid_rf, metrics = metric_set(roc_auc))
 ```
 
 ```{r}
+autoplot(tune_res_rf)
 collect_metrics(tune_res_rf) %>% arrange(desc(mean))
 ```
+
+Throughout all the models, it seems that the best performing models had 8 or 10 trees. 
