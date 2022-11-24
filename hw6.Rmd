@@ -64,7 +64,7 @@ Looking at the correlation plot there seems to be no negative correlation betwee
 as something with high defense should have high special defense and something with strong speed should be high attack since its offensive.
 
 # q3
-```{r}
+```{r, include= FALSE}
 poke_tree_spec <- decision_tree(cost_complexity = tune()) %>% 
   set_mode("classification") %>% 
   set_engine("rpart")
@@ -92,7 +92,7 @@ best_parameter_tree <- select_best(tune_res_tree, metric = "roc_auc")
 best_parameter_tree
 ```
 
-The best performing decision tree was 0.6643, and it had a cost_complexity of 0.01292
+The best performing decision tree was 0.655, and it had a cost_complexity of 0.001
 
 # q5
 ```{r}
@@ -129,7 +129,7 @@ Since we haev 9 predictors in our dataset, mtry should range from 1 to 8. Otherw
 aren't available
 
 # q6
-```{r}
+```{r, include= FALSE}
 tune_res_rf <- tune_grid(poke_rf_wf, resamples = poke_fold, grid = param_grid_rf, metrics = metric_set(roc_auc))
 ```
 
@@ -147,7 +147,7 @@ best_parameter_rf <- select_best(tune_res_rf, metric = "roc_auc")
 best_parameter_rf
 ```
 
-The best performing model was (mtry = 7, trees = 10, and min_n = 4) with a roc_auc score of 0.7218
+The best performing model was (mtry = 6, trees = 10, and min_n = 1) with a roc_auc score of 0.700
 
 # q8
 ```{r}
@@ -180,7 +180,7 @@ autoplot(tune_res_boosted)
 collect_metrics(tune_res_boosted) %>% arrange(desc(mean))
 ```
 
-10 trees had the highest roc_auc score while the lowest score is around 231 trees.
+452 trees had the highest roc_auc score while the lowest score is around 10 trees.
 
 
 ```{r}
@@ -196,7 +196,7 @@ boosted_auc <- collect_metrics(tune_res_boosted) %>% arrange(desc(mean))
 roc_aucs <- c(tree_auc$mean[1], forest_auc$mean[1], boosted_auc$mean[1])
 roc_aucs
 ```
-From the three, it seems that the boosted tree tree model with 10 trees performed best with 0.7349 roc_auc score
+From the three, it seems that the boosted tree tree model with 10 trees performed best with 0.7122 roc_auc score
 
 ```{r}
 poke_final <- finalize_workflow(poke_boosted_wf, best_parameter_boosted)
@@ -220,5 +220,4 @@ final_model_conf <- augment(poke_final_fit, new_data = poke_test) %>%
 final_model_conf
 ```
 
-The model was best at predicting normal types followed by water types. Fire and grass was the worst as it only got 1 correct
-on both of them. And the model was okay at predicting bug types as well.
+The model was best at predicting psychic water and normal types. Grass was the worst as it only got 2 correct And the model was okay at predicting bug and fire type.
